@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Leonardo de Moura
 -/
 prelude
-import init.category.monad init.meta.format init.util
+import init.category.monad init.category.alternative init.meta.format init.util
 /-
 Remark: we use a function that produces a format object as the exception information.
 Motivation: the formatting object may be big, and we may create it on demand.
@@ -48,7 +48,24 @@ success a
 
 @[inline] meta def fail (f : format) : exceptional α :=
 exception α (λ u, f)
+
+protected meta def orelse {α} : exceptional α → exceptional α → exceptional α
+| (success x) _ := success x
+| (exception _ _) y := y
 end exceptional
 
 meta instance : monad exceptional :=
 {pure := @exceptional.return, bind := @exceptional.bind}
+
+/-
+Note these caveats:
+
+* `failure` does not provide an informative error message, so `fail` should
+  usually be preferred.
+* When you write `orelse x y`, both `x` and `y` will always be evaluated.
+* This instance is not law-abiding: `orelse (exception _ x) failure` should be
+  `exception _ x` but is `failure`.
+-/
+meta instance : alternative exceptional :=
+{orelse := @exceptional.orelse,
+failure := λ {_}, exceptional.fail format.nil}
